@@ -14,6 +14,7 @@ class RouteTableStack(Stack):
                  igw,
                  tags: dict,
                  env_name: str,
+                 data_subnets=None,
                  **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
@@ -62,3 +63,20 @@ class RouteTableStack(Stack):
                 destination_cidr_block="0.0.0.0/0",
                 nat_gateway_id=nat_gateways[i].ref
             )
+
+        # Data Route Table (local route only)
+        if data_subnets:
+            data_rt = ec2.CfnRouteTable(
+                self, "DataRouteTable",
+                vpc_id=vpc.vpc_id,
+                tags=[
+                    ec2.CfnTag(key="Name", value=f"{env_name}-data-rt")
+                ] + [ec2.CfnTag(key=k, value=v) for k, v in tags.items()]
+            )
+
+            for i, data_subnet in enumerate(data_subnets):
+                ec2.CfnSubnetRouteTableAssociation(
+                    self, f"DataRTAssoc{i+1}",
+                    subnet_id=data_subnet.subnet_id,
+                    route_table_id=data_rt.ref
+                )

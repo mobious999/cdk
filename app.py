@@ -4,6 +4,9 @@ from stacks.nacl_stack import NaclStack
 from stacks.route_table_stack import RouteTableStack
 from stacks.prefixlist_stack import PrefixListStack
 from stacks.sg_stack import SecurityGroupStack
+from stacks.gateway_endpoint_stack import GatewayEndpointStack
+from stacks.interface_endpoint_stack import InterfaceEndpointStack
+from stacks.flow_log_stack import FlowLogStack
 from aws_cdk import aws_ec2 as ec2
 
 app = App()
@@ -71,13 +74,13 @@ config = {
     }
 }
 
-# Define environment (replace with your actual account and region)
+# Define environment
 env = Environment(account="123456789012", region="us-east-1")
 
-# Stack instantiations
+# VPC and networking components
 vpc_stack = VpcStack(app, "VpcStack", config=config, env=env)
 
-# Internet Gateway
+# Internet Gateway and NATs must be created AFTER vpc_stack.vpc
 igw = ec2.CfnInternetGateway(app, "InternetGateway", tags=[
     ec2.CfnTag(key="Name", value=f"{config['env_name']}-igw")
 ])
@@ -86,7 +89,6 @@ ec2.CfnVPCGatewayAttachment(app, "IgwAttachment",
     vpc_id=vpc_stack.vpc.vpc_id
 )
 
-# NAT Gateways (1 per AZ)
 nat_gateways = []
 for i, subnet in enumerate(vpc_stack.public_subnets):
     eip = ec2.CfnEIP(app, f"NatEip{i+1}", domain="vpc")
@@ -113,6 +115,7 @@ route_table_stack = RouteTableStack(app, "RouteTableStack",
     private_subnets=vpc_stack.private_subnets,
     nat_gateways=nat_gateways,
     igw=igw,
+    data_subnets=vpc_stack.data_subnets,
     tags=config["tags"],
     env_name=config["env_name"],
     env=env
@@ -124,6 +127,29 @@ sg_stack = SecurityGroupStack(app, "SecurityGroupStack",
     vpc=vpc_stack.vpc,
     prefix_lists=prefix_list_stack.prefix_lists,
     config=config,
+    env=env
+)
+
+gateway_ep_stack = GatewayEndpointStack(app, "GatewayEndpointStack",
+    vpc=vpc_stack.vpc,
+    route_table_ids=[rt.ref for rt in route_table_stack.node.find_all() if isinstance(rt, ec2.CfnRouteTable)],
+    env_name=config["env_name"],
+    env=env
+)
+
+interface_ep_stack = InterfaceEndpointStack(app, "InterfaceEndpointStack",
+    vpc=vpc_stack.vpc,
+    private_subnet_ids=[subnet.subnet_id for subnet in vpc_stack.private_subnets],
+    region=env.region,
+    env_name=config["env_name"],
+    tags=config["tags"],
+    env=env
+)
+
+flow_log_stack = FlowLogStack(app, "FlowLogStack",
+    vpc=vpc_stack.vpc,
+    env_name=config["env_name"],
+    tags=config["tags"],
     env=env
 )
 

@@ -1,6 +1,7 @@
 from aws_cdk import (
     Stack,
-    aws_ec2 as ec2
+    aws_ec2 as ec2,
+    Tags
 )
 from constructs import Construct
 
@@ -14,7 +15,7 @@ class GatewayEndpointStack(Stack):
         super().__init__(scope, construct_id, **kwargs)
 
         # S3 Gateway Endpoint
-        ec2.CfnVPCEndpoint(
+        s3_ep = ec2.CfnVPCEndpoint(
             self, "S3GatewayEndpoint",
             service_name=f"com.amazonaws.{self.region}.s3",
             vpc_id=vpc.vpc_id,
@@ -30,14 +31,12 @@ class GatewayEndpointStack(Stack):
                         "Resource": "*"
                     }
                 ]
-            },
-            tags=[
-                ec2.CfnTag(key="Name", value=f"{env_name}-s3-endpoint")
-            ]
+            }
         )
+        Tags.of(s3_ep).add("Name", f"{env_name}-s3-endpoint")
 
         # DynamoDB Gateway Endpoint
-        ec2.CfnVPCEndpoint(
+        ddb_ep = ec2.CfnVPCEndpoint(
             self, "DynamoDBGatewayEndpoint",
             service_name=f"com.amazonaws.{self.region}.dynamodb",
             vpc_id=vpc.vpc_id,
@@ -53,8 +52,6 @@ class GatewayEndpointStack(Stack):
                         "Resource": "*"
                     }
                 ]
-            },
-            tags=[
-                ec2.CfnTag(key="Name", value=f"{env_name}-dynamodb-endpoint")
-            ]
+            }
         )
+        Tags.of(ddb_ep).add("Name", f"{env_name}-dynamodb-endpoint")

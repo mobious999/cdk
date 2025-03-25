@@ -1,4 +1,4 @@
-from aws_cdk import App, Environment
+from aws_cdk import App, Environment, Tags
 from stacks.vpc_stack import VpcStack
 from stacks.nacl_stack import NaclStack
 from stacks.route_table_stack import RouteTableStack
@@ -80,10 +80,10 @@ env = Environment(account="123456789012", region="us-east-1")
 # VPC and networking components
 vpc_stack = VpcStack(app, "VpcStack", config=config, env=env)
 
-# Internet Gateway and NATs must be created AFTER vpc_stack.vpc
-igw = ec2.CfnInternetGateway(app, "InternetGateway", tags=[
-    ec2.CfnTag(key="Name", value=f"{config['env_name']}-igw")
-])
+# Internet Gateway
+igw = ec2.CfnInternetGateway(app, "InternetGateway")
+Tags.of(igw).add("Name", f"{config['env_name']}-igw")
+
 ec2.CfnVPCGatewayAttachment(app, "IgwAttachment",
     internet_gateway_id=igw.ref,
     vpc_id=vpc_stack.vpc.vpc_id
@@ -94,9 +94,9 @@ for i, subnet in enumerate(vpc_stack.public_subnets):
     eip = ec2.CfnEIP(app, f"NatEip{i+1}", domain="vpc")
     nat = ec2.CfnNatGateway(app, f"NatGateway{i+1}",
         subnet_id=subnet.subnet_id,
-        allocation_id=eip.attr_allocation_id,
-        tags=[ec2.CfnTag(key="Name", value=f"{config['env_name']}-natgw-{i+1}")]
+        allocation_id=eip.attr_allocation_id
     )
+    Tags.of(nat).add("Name", f"{config['env_name']}-natgw-{i+1}")
     nat_gateways.append(nat)
 
 nacl_stack = NaclStack(app, "NaclStack",

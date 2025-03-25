@@ -13,12 +13,18 @@ class NaclStack(Stack):
         # Public NACL with rules and subnet associations
         public_nacl = ec2.NetworkAcl(
             self, "PublicNACL",
-            vpc=vpc,
-            subnet_selection=ec2.SubnetSelection(subnets=public_subnets)
+            vpc=vpc
         )
         Tags.of(public_nacl).add("Name", f"{env_name}-public-nacl")
         for k, v in tags.items():
             Tags.of(public_nacl).add(k, v)
+
+        for idx, subnet in enumerate(public_subnets):
+            ec2.CfnSubnetNetworkAclAssociation(
+                self, f"PublicNaclAssoc{idx+1}",
+                subnet_id=subnet.subnet_id,
+                network_acl_id=public_nacl.network_acl_id
+            )
 
         public_nacl.add_entry("AllowHTTP",
             cidr=ec2.AclCidr.any_ipv4(),
@@ -39,12 +45,18 @@ class NaclStack(Stack):
         # Private NACL with rules and subnet associations
         private_nacl = ec2.NetworkAcl(
             self, "PrivateNACL",
-            vpc=vpc,
-            subnet_selection=ec2.SubnetSelection(subnets=private_subnets)
+            vpc=vpc
         )
         Tags.of(private_nacl).add("Name", f"{env_name}-private-nacl")
         for k, v in tags.items():
             Tags.of(private_nacl).add(k, v)
+
+        for idx, subnet in enumerate(private_subnets):
+            ec2.CfnSubnetNetworkAclAssociation(
+                self, f"PrivateNaclAssoc{idx+1}",
+                subnet_id=subnet.subnet_id,
+                network_acl_id=private_nacl.network_acl_id
+            )
 
         private_nacl.add_entry("AllowAllEgress",
             cidr=ec2.AclCidr.any_ipv4(),
@@ -57,12 +69,18 @@ class NaclStack(Stack):
         # Data NACL with rules and subnet associations
         data_nacl = ec2.NetworkAcl(
             self, "DataNACL",
-            vpc=vpc,
-            subnet_selection=ec2.SubnetSelection(subnets=data_subnets)
+            vpc=vpc
         )
         Tags.of(data_nacl).add("Name", f"{env_name}-data-nacl")
         for k, v in tags.items():
             Tags.of(data_nacl).add(k, v)
+
+        for idx, subnet in enumerate(data_subnets):
+            ec2.CfnSubnetNetworkAclAssociation(
+                self, f"DataNaclAssoc{idx+1}",
+                subnet_id=subnet.subnet_id,
+                network_acl_id=data_nacl.network_acl_id
+            )
 
         data_nacl.add_entry("AllowMySQL",
             cidr=ec2.AclCidr.any_ipv4(),

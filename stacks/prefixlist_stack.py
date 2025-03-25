@@ -1,7 +1,7 @@
 from aws_cdk import (
     Stack,
     aws_ec2 as ec2,
-    CfnTag
+    Tags
 )
 from constructs import Construct
 
@@ -31,11 +31,12 @@ class PrefixListStack(Stack):
                 address_family="IPv4",
                 max_entries=len(prefix_entries),
                 prefix_list_name=f"{env_name}-{name}",
-                entries=prefix_entries,
-                tags=[CfnTag(key="Name", value=f"{env_name}-{name}")] +
-                     [CfnTag(key=k, value=v) for k, v in tags.items()]
+                entries=prefix_entries
             )
+
+            Tags.of(prefix_list).add("Name", f"{env_name}-{name}")
+            for k, v in tags.items():
+                Tags.of(prefix_list).add(k, v)
 
             # Store prefix list ID reference
             self.prefix_lists[name] = prefix_list.ref  # or use .attr_prefix_list_id for full ARN
-

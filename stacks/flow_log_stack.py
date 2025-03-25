@@ -2,7 +2,8 @@ from aws_cdk import (
     Stack,
     aws_ec2 as ec2,
     aws_logs as logs,
-    aws_iam as iam
+    aws_iam as iam,
+    Tags
 )
 from constructs import Construct
 
@@ -45,8 +46,9 @@ class FlowLogStack(Stack):
             traffic_type="ALL",
             log_destination_type="cloud-watch-logs",
             log_group_name=log_group.log_group_name,
-            deliver_logs_permission_arn=flow_log_role.role_arn,
-            tags=[
-                ec2.CfnTag(key="Name", value=f"{env_name}-vpc-flow-logs")
-            ] + [ec2.CfnTag(key=k, value=v) for k, v in tags.items()]
+            deliver_logs_permission_arn=flow_log_role.role_arn
         )
+
+        Tags.of(flow_log).add("Name", f"{env_name}-vpc-flow-logs")
+        for k, v in tags.items():
+            Tags.of(flow_log).add(k, v)

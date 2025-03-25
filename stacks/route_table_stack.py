@@ -1,6 +1,7 @@
 from aws_cdk import (
     Stack,
-    aws_ec2 as ec2
+    aws_ec2 as ec2,
+    Tags
 )
 from constructs import Construct
 
@@ -21,11 +22,11 @@ class RouteTableStack(Stack):
         # Public Route Table and associations
         public_route_table = ec2.CfnRouteTable(
             self, "PublicRouteTable",
-            vpc_id=vpc.vpc_id,
-            tags=[
-                ec2.CfnTag(key="Name", value=f"{env_name}-public-rt")
-            ] + [ec2.CfnTag(key=k, value=v) for k, v in tags.items()]
+            vpc_id=vpc.vpc_id
         )
+        Tags.of(public_route_table).add("Name", f"{env_name}-public-rt")
+        for k, v in tags.items():
+            Tags.of(public_route_table).add(k, v)
 
         for idx, public_subnet in enumerate(public_subnets):
             ec2.CfnSubnetRouteTableAssociation(
@@ -45,11 +46,11 @@ class RouteTableStack(Stack):
         for i, private_subnet in enumerate(private_subnets):
             private_rt = ec2.CfnRouteTable(
                 self, f"PrivateRouteTable{i+1}",
-                vpc_id=vpc.vpc_id,
-                tags=[
-                    ec2.CfnTag(key="Name", value=f"{env_name}-private-rt-{i+1}")
-                ] + [ec2.CfnTag(key=k, value=v) for k, v in tags.items()]
+                vpc_id=vpc.vpc_id
             )
+            Tags.of(private_rt).add("Name", f"{env_name}-private-rt-{i+1}")
+            for k, v in tags.items():
+                Tags.of(private_rt).add(k, v)
 
             ec2.CfnSubnetRouteTableAssociation(
                 self, f"PrivateRTAssoc{i+1}",
@@ -68,11 +69,11 @@ class RouteTableStack(Stack):
         if data_subnets:
             data_rt = ec2.CfnRouteTable(
                 self, "DataRouteTable",
-                vpc_id=vpc.vpc_id,
-                tags=[
-                    ec2.CfnTag(key="Name", value=f"{env_name}-data-rt")
-                ] + [ec2.CfnTag(key=k, value=v) for k, v in tags.items()]
+                vpc_id=vpc.vpc_id
             )
+            Tags.of(data_rt).add("Name", f"{env_name}-data-rt")
+            for k, v in tags.items():
+                Tags.of(data_rt).add(k, v)
 
             for i, data_subnet in enumerate(data_subnets):
                 ec2.CfnSubnetRouteTableAssociation(

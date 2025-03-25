@@ -48,15 +48,15 @@ class InterfaceEndpointStack(Stack):
         ]
 
         for service in services:
-            ec2.CfnVPCEndpoint(
+            endpoint = ec2.CfnVPCEndpoint(
                 self, f"{service}Endpoint",
                 vpc_id=vpc.vpc_id,
                 service_name=f"com.amazonaws.{region}.{service}",
                 vpc_endpoint_type="Interface",
                 private_dns_enabled=True,
                 subnet_ids=private_subnet_ids,
-                security_group_ids=[sg.security_group_id],
-                tags=[
-                    ec2.CfnTag(key="Name", value=f"{env_name}-{service}-endpoint")
-                ] + [ec2.CfnTag(key=k, value=v) for k, v in tags.items()]
+                security_group_ids=[sg.security_group_id]
             )
+            Tags.of(endpoint).add("Name", f"{env_name}-{service}-endpoint")
+            for k, v in tags.items():
+                Tags.of(endpoint).add(k, v)

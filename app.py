@@ -1,4 +1,4 @@
-from aws_cdk import App, Environment, Tags
+from aws_cdk import App, Environment
 from stacks.vpc_stack import VpcStack
 from stacks.nacl_stack import NaclStack
 from stacks.route_table_stack import RouteTableStack
@@ -7,7 +7,8 @@ from stacks.sg_stack import SecurityGroupStack
 from stacks.gateway_endpoint_stack import GatewayEndpointStack
 from stacks.interface_endpoint_stack import InterfaceEndpointStack
 from stacks.flow_log_stack import FlowLogStack
-from aws_cdk import aws_ec2 as ec2
+from stacks.igw_stack import InternetGatewayStack
+from aws_cdk import aws_ec2 as ec2, CfnTag
 
 app = App()
 
@@ -80,23 +81,22 @@ env = Environment(account="123456789012", region="us-east-1")
 # VPC and networking components
 vpc_stack = VpcStack(app, "VpcStack", config=config, env=env)
 
-# Internet Gateway
-igw = ec2.CfnInternetGateway(app, "InternetGateway")
-Tags.of(igw).add("Name", f"{config['env_name']}-igw")
-
-ec2.CfnVPCGatewayAttachment(app, "IgwAttachment",
-    internet_gateway_id=igw.ref,
-    vpc_id=vpc_stack.vpc.vpc_id
+# Internet Gateway Stack
+igw_stack = InternetGatewayStack(app, "InternetGatewayStack",
+    vpc=vpc_stack.vpc,
+    env_name=config["env_name"],
+    tags=config["tags"],
+    env=env
 )
 
 nat_gateways = []
 for i, subnet in enumerate(vpc_stack.public_subnets):
-    eip = ec2.CfnEIP(app, f"NatEip{i+1}", domain="vpc")
-    nat = ec2.CfnNatGateway(app, f"NatGateway{i+1}",
-        subnet_id=subnet.subnet_id,
-        allocation_id=eip.attr_allocation_id
+    eip = ec2.CfnEIP(vpc_stack, f"NatEip{i+1}", domain="vpc")
+    nat = ec2.CfnNatGateway(vpc_stack, f"NatGateway{i+1}",
+        subnet_id=subnet.ref,
+        allocation_id=eip.attr_allocation_id,
+        tags=[CfnTag(key="Name", value=f"{config['env_name']}-natgw-{i+1}")]
     )
-    Tags.of(nat).add("Name", f"{config['env_name']}-natgw-{i+1}")
     nat_gateways.append(nat)
 
 nacl_stack = NaclStack(app, "NaclStack",
@@ -114,7 +114,7 @@ route_table_stack = RouteTableStack(app, "RouteTableStack",
     public_subnets=vpc_stack.public_subnets,
     private_subnets=vpc_stack.private_subnets,
     nat_gateways=nat_gateways,
-    igw=igw,
+    igw=igw_stack.igw,
     data_subnets=vpc_stack.data_subnets,
     tags=config["tags"],
     env_name=config["env_name"],
@@ -139,7 +139,7 @@ gateway_ep_stack = GatewayEndpointStack(app, "GatewayEndpointStack",
 
 interface_ep_stack = InterfaceEndpointStack(app, "InterfaceEndpointStack",
     vpc=vpc_stack.vpc,
-    private_subnet_ids=[subnet.subnet_id for subnet in vpc_stack.private_subnets],
+    private_subnet_ids=[subnet.ref for subnet in vpc_stack.private_subnets],
     region=env.region,
     env_name=config["env_name"],
     tags=config["tags"],
